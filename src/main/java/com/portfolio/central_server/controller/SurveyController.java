@@ -5,6 +5,7 @@ import com.portfolio.central_server.DTO.OptionDTO;
 import com.portfolio.central_server.DTO.SurveyDTO;
 import com.portfolio.central_server.model.*;
 import com.portfolio.central_server.service.SurveyService;
+import com.portfolio.central_server.service.UserService;
 import jakarta.persistence.PersistenceException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -17,10 +18,15 @@ import java.util.*;
 public class SurveyController {
 
     private final SurveyService surveyService;
+    private AuthController authController;
+    private UserService userService;
+
 
     @Autowired
-    public SurveyController(SurveyService surveyService) {
+    public SurveyController(SurveyService surveyService, AuthController authController, UserService userService) {
+        this.authController = authController;
         this.surveyService = surveyService;
+        this.userService = userService;
     }
 
     // Endpoint to get all surveys
@@ -32,7 +38,7 @@ public class SurveyController {
             SurveyDTO newSurveyDTO = new SurveyDTO();
             newSurveyDTO.setId(s.getId());
             newSurveyDTO.setTitle(s.getTitle());
-            newSurveyDTO.setUserNickname(s.getUser().getNickname());
+            newSurveyDTO.setUser(s.getUser().getNickname());
             List<OptionDTO> options = new ArrayList<OptionDTO>();
             for(Option o : s.getOptions()) {
                 OptionDTO newOptionDTO = new OptionDTO();
@@ -58,7 +64,7 @@ public class SurveyController {
             SurveyDTO surveyDTO = new SurveyDTO();
             surveyDTO.setTitle(survey.get().getTitle());
             surveyDTO.setId(survey.get().getId());
-            surveyDTO.setUserNickname(survey.get().getUser().getNickname());
+            surveyDTO.setUser(survey.get().getUser().getNickname());
             List<OptionDTO> options = new ArrayList<OptionDTO>();
             for(Option o : survey.get().getOptions()) {
                 OptionDTO newOptionDTO = new OptionDTO();
@@ -75,23 +81,30 @@ public class SurveyController {
 
     // Endpoint to create a new survey
     @PostMapping
-    public ResponseEntity<Void> createSurvey(@RequestBody CreateSurveyRequestDTO request) {
-
+    public ResponseEntity<Void> createSurvey(@RequestBody CreateSurveyRequestDTO body, @RequestHeader("Authorization") String authorizationHeader) {
+        String token = authorizationHeader.substring(7);
+        String nickname = authController.getNicknameFromToken(token);
+        Optional<User> user = userService.findUserByNickname(nickname);
         Survey newSurvey = new Survey();
-        newSurvey.setTitle(request.getTitle());
+        newSurvey.setTitle(body.getTitle());
         List<Option> options = new ArrayList<Option>();
-        for(String name : request.getOptionNames()) {
-            Option newOption = new Option();
-            newOption.setSurvey(newSurvey);
-            newOption.setName(name);
-            options.add(newOption);
-        }
-        newSurvey.setOptions(options);
-        try {
-            surveyService.saveSurvey(newSurvey);
-            return ResponseEntity.status(HttpStatus.CREATED).build();
-        } catch (PersistenceException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        if(body.getOptions().size() == 0){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        } else {
+            for(String name : body.getOptions()) {
+                Option newOption = new Option();
+                newOption.setSurvey(newSurvey);
+                newOption.setName(name);
+                options.add(newOption);
+            }
+            newSurvey.setOptions(options);
+            newSurvey.setUser(user.get());
+            try {
+                surveyService.saveSurvey(newSurvey);
+                return ResponseEntity.status(HttpStatus.CREATED).build();
+            } catch (PersistenceException e) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            }
         }
     }
 

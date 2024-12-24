@@ -5,7 +5,7 @@ import java.util.List;
 public class SurveyDTO {
     private Long id;
     private String title;
-    private String userNickname;
+    private String user;
     private List<OptionDTO> options;
 
     public Long getId() {
@@ -32,11 +32,11 @@ public class SurveyDTO {
         this.title = title;
     }
 
-    public String getUserNickname() {
-        return userNickname;
+    public String getUser() {
+        return user;
     }
 
-    public void setUserNickname(String userNickname) {
-        this.userNickname = userNickname;
+    public void setUser(String user) {
+        this.user = user;
     }
 }
